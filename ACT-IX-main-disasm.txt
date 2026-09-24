@@ -1,0 +1,381 @@
+; =============================================================================
+; Disassembly of IRON FANG smart parking barrier firmware (artifact ACT-IX)
+; Binary: ACT-IX_fixed.bin loaded at flash base 0x10000000
+; Architecture: ARM Cortex-M33 (Thumb-2), RP2350, Pico SDK 2.2.0
+; Toolchain: arm-none-eabi-gcc, -O3
+; Command: arm-none-eabi-objdump -d build/ACT-IX.elf
+;
+; File offsets in this listing are VA - 0x10000000, matching the .bin.
+; Every defect is an in-place, same-size byte patch, so no address moves.
+;
+; -----------------------------------------------------------------------------
+; KEY FINDINGS - THE FOUR SABOTAGE SITES
+; -----------------------------------------------------------------------------
+;
+;   Defect 1 - Boom slam (implant_weapon_armed)
+;     VA 0x1000A364  file 0xA364
+;       cbz	r3, 1000a36a <implant_weapon_armed+0xe> ; correct image
+;     COMPROMISE: patch byte 0xA365 0xB1 -> 0xB9 (cbz -> cbnz)
+;     The weapon gate is inverted, so the implant reports the boom armed and the monitor forces the boom down.
+;
+;   Defect 2 - Safety mask (implant_safety_masked)
+;     VA 0x1000A37C  file 0xA37C
+;       cbz	r3, 1000a382 <implant_safety_masked+0xe> ; correct image
+;     COMPROMISE: patch byte 0xA37D 0xB1 -> 0xB9 (cbz -> cbnz)
+;     The mask gate is inverted, so the safety loop falsely reports clear and the barrier never yields.
+;
+;   Defect 3 - Weapon marker (implant_infect, inlined into implant_init)
+;     VA 0x1000A3BE  file 0xA3BE
+;       cbz	r4, 1000a3fa <implant_init+0x6e> ; correct image
+;     COMPROMISE: patch byte 0xA3BF 0xB1 -> 0xB9 (cbz -> cbnz)
+;     The marker gate is inverted, so marker 0x57 is erased and programmed into the reserved sector 0x103FF000 with the real flash API.
+;
+;   Defect 4 - Barrier command authorization (control_handle_frame)
+;     VA 0x100075F8  file 0x75F8
+;       cbz	r0, 10007606 <control_handle_frame+0x7a> ; correct image
+;     COMPROMISE: patch byte 0x75F9 0xB1 -> 0xB9 (cbz -> cbnz)
+;     The authorization verdict is inverted, so an unauthenticated or replayed barrier command reaches the applied command.
+;
+; The CoreDebug DHCSR anti-debug check is identical in both images and is an
+; analysis obstacle, not a patch.
+;
+; The reserved-sector marker is written with the Pico SDK flash API
+; (flash_range_erase and flash_range_program), not a plain memory-mapped store,
+; so the marker persists on real flash.
+;
+; Total intended changed bytes: 4. ACT-IX.bin and ACT-IX_fixed.bin differ in
+; exactly those four bytes and nothing else.
+;
+; =============================================================================
+
+; -----------------------------------------------------------------------------
+; main
+; -----------------------------------------------------------------------------
+10000234:	b508       	push	{r3, lr}
+10000236:	f003 fa93  	bl	10003760 <stdio_init_all>
+1000023a:	4807       	ldr	r0, [pc, #28]	@ (10000258 <main+0x24>)
+1000023c:	f003 fada  	bl	100037f4 <__wrap_puts>
+10000240:	f006 f90c  	bl	1000645c <monitor_init>
+10000244:	b110       	cbz	r0, 1000024c <main+0x18>
+10000246:	f006 fa1f  	bl	10006688 <monitor_step>
+1000024a:	e7fc       	b.n	10000246 <main+0x12>
+1000024c:	4803       	ldr	r0, [pc, #12]	@ (1000025c <main+0x28>)
+1000024e:	f003 fad1  	bl	100037f4 <__wrap_puts>
+10000252:	2001       	movs	r0, #1
+10000254:	bd08       	pop	{r3, pc}
+10000256:	bf00       	nop
+10000258:	1000abb8   	.word	0x1000abb8
+1000025c:	1000abc0   	.word	0x1000abc0
+
+
+; -----------------------------------------------------------------------------
+; control_handle_frame
+; -----------------------------------------------------------------------------
+1000758c:	2107       	movs	r1, #7
+1000758e:	b530       	push	{r4, r5, lr}
+10007590:	4b1e       	ldr	r3, [pc, #120]	@ (1000760c <control_handle_frame+0x80>)
+10007592:	b097       	sub	sp, #92	@ 0x5c
+10007594:	781a       	ldrb	r2, [r3, #0]
+10007596:	f88d 1018  	strb.w	r1, [sp, #24]
+1000759a:	2a00       	cmp	r2, #0
+1000759c:	d033       	beq.n	10007606 <control_handle_frame+0x7a>
+1000759e:	2800       	cmp	r0, #0
+100075a0:	d031       	beq.n	10007606 <control_handle_frame+0x7a>
+100075a2:	2430       	movs	r4, #48	@ 0x30
+100075a4:	a905       	add	r1, sp, #20
+100075a6:	aa0a       	add	r2, sp, #40	@ 0x28
+100075a8:	4603       	mov	r3, r0
+100075aa:	9102       	str	r1, [sp, #8]
+100075ac:	9200       	str	r2, [sp, #0]
+100075ae:	4818       	ldr	r0, [pc, #96]	@ (10007610 <control_handle_frame+0x84>)
+100075b0:	2201       	movs	r2, #1
+100075b2:	a906       	add	r1, sp, #24
+100075b4:	9401       	str	r4, [sp, #4]
+100075b6:	f000 fa13  	bl	100079e0 <envelope_open_hex>
+100075ba:	b320       	cbz	r0, 10007606 <control_handle_frame+0x7a>
+100075bc:	9b05       	ldr	r3, [sp, #20]
+100075be:	2b16       	cmp	r3, #22
+100075c0:	d921       	bls.n	10007606 <control_handle_frame+0x7a>
+100075c2:	f89d 402c  	ldrb.w	r4, [sp, #44]	@ 0x2c
+100075c6:	f8bd 302d  	ldrh.w	r3, [sp, #45]	@ 0x2d
+100075ca:	1e62       	subs	r2, r4, #1
+100075cc:	2a02       	cmp	r2, #2
+100075ce:	b21d       	sxth	r5, r3
+100075d0:	d819       	bhi.n	10007606 <control_handle_frame+0x7a>
+100075d2:	2b10       	cmp	r3, #16
+100075d4:	d817       	bhi.n	10007606 <control_handle_frame+0x7a>
+100075d6:	f8dd 002f  	ldr.w	r0, [sp, #47]	@ 0x2f
+100075da:	f8dd 1033  	ldr.w	r1, [sp, #51]	@ 0x33
+100075de:	f8dd 2037  	ldr.w	r2, [sp, #55]	@ 0x37
+100075e2:	f8dd 303b  	ldr.w	r3, [sp, #59]	@ 0x3b
+100075e6:	f10d 0c18  	add.w	ip, sp, #24
+100075ea:	e8ac 000f  	stmia.w	ip!, {r0, r1, r2, r3}
+100075ee:	990a       	ldr	r1, [sp, #40]	@ 0x28
+100075f0:	4808       	ldr	r0, [pc, #32]	@ (10007614 <control_handle_frame+0x88>)
+100075f2:	aa06       	add	r2, sp, #24
+100075f4:	f000 f8a2  	bl	1000773c <barrier_auth_apply>
+100075f8:	b128       	cbz	r0, 10007606 <control_handle_frame+0x7a>
+    ; DEFECT 4 BARRIER COMMAND AUTHORIZATION: cbz -> cbnz. ACT-IX.bin flips 0x75F9 0xB1 -> 0xB9.
+100075fa:	4a07       	ldr	r2, [pc, #28]	@ (10007618 <control_handle_frame+0x8c>)
+100075fc:	4b07       	ldr	r3, [pc, #28]	@ (1000761c <control_handle_frame+0x90>)
+100075fe:	7014       	strb	r4, [r2, #0]
+10007600:	801d       	strh	r5, [r3, #0]
+10007602:	b017       	add	sp, #92	@ 0x5c
+10007604:	bd30       	pop	{r4, r5, pc}
+10007606:	2000       	movs	r0, #0
+10007608:	b017       	add	sp, #92	@ 0x5c
+1000760a:	bd30       	pop	{r4, r5, pc}
+1000760c:	20013cf0   	.word	0x20013cf0
+10007610:	200136e8   	.word	0x200136e8
+10007614:	200136cc   	.word	0x200136cc
+10007618:	20013cef   	.word	0x20013cef
+1000761c:	20013ce2   	.word	0x20013ce2
+
+
+; -----------------------------------------------------------------------------
+; barrier_auth_apply
+; -----------------------------------------------------------------------------
+1000773c:	2800       	cmp	r0, #0
+1000773e:	d05c       	beq.n	100077fa <barrier_auth_apply+0xbe>
+10007740:	e92d 41f0  	stmdb	sp!, {r4, r5, r6, r7, r8, lr}
+10007744:	4616       	mov	r6, r2
+10007746:	b094       	sub	sp, #80	@ 0x50
+10007748:	b122       	cbz	r2, 10007754 <barrier_auth_apply+0x18>
+1000774a:	6883       	ldr	r3, [r0, #8]
+1000774c:	4604       	mov	r4, r0
+1000774e:	428b       	cmp	r3, r1
+10007750:	460d       	mov	r5, r1
+10007752:	d303       	bcc.n	1000775c <barrier_auth_apply+0x20>
+10007754:	2000       	movs	r0, #0
+10007756:	b014       	add	sp, #80	@ 0x50
+10007758:	e8bd 81f0  	ldmia.w	sp!, {r4, r5, r6, r7, r8, pc}
+1000775c:	4b28       	ldr	r3, [pc, #160]	@ (10007800 <barrier_auth_apply+0xc4>)
+1000775e:	781b       	ldrb	r3, [r3, #0]
+10007760:	2b00       	cmp	r3, #0
+10007762:	d0f7       	beq.n	10007754 <barrier_auth_apply+0x18>
+10007764:	b2cb       	uxtb	r3, r1
+10007766:	f88d 3011  	strb.w	r3, [sp, #17]
+1000776a:	f88d 3015  	strb.w	r3, [sp, #21]
+1000776e:	2300       	movs	r3, #0
+10007770:	22a7       	movs	r2, #167	@ 0xa7
+10007772:	2701       	movs	r7, #1
+10007774:	f8cd 3049  	str.w	r3, [sp, #73]	@ 0x49
+10007778:	9301       	str	r3, [sp, #4]
+1000777a:	f8cd 303d  	str.w	r3, [sp, #61]	@ 0x3d
+1000777e:	f8cd 3041  	str.w	r3, [sp, #65]	@ 0x41
+10007782:	f8cd 3045  	str.w	r3, [sp, #69]	@ 0x45
+10007786:	9313       	str	r3, [sp, #76]	@ 0x4c
+10007788:	ab07       	add	r3, sp, #28
+1000778a:	9302       	str	r3, [sp, #8]
+1000778c:	f3c1 2307  	ubfx	r3, r1, #8, #8
+10007790:	f88d 3012  	strb.w	r3, [sp, #18]
+10007794:	f88d 3016  	strb.w	r3, [sp, #22]
+10007798:	f3c1 4307  	ubfx	r3, r1, #16, #8
+1000779c:	f88d 203c  	strb.w	r2, [sp, #60]	@ 0x3c
+100077a0:	f10d 0828  	add.w	r8, sp, #40	@ 0x28
+100077a4:	aa04       	add	r2, sp, #16
+100077a6:	f88d 3013  	strb.w	r3, [sp, #19]
+100077aa:	f88d 3017  	strb.w	r3, [sp, #23]
+100077ae:	0e0b       	lsrs	r3, r1, #24
+100077b0:	910e       	str	r1, [sp, #56]	@ 0x38
+100077b2:	f88d 3014  	strb.w	r3, [sp, #20]
+100077b6:	f88d 3018  	strb.w	r3, [sp, #24]
+100077ba:	4812       	ldr	r0, [pc, #72]	@ (10007804 <barrier_auth_apply+0xc8>)
+100077bc:	2309       	movs	r3, #9
+100077be:	9200       	str	r2, [sp, #0]
+100077c0:	f8cd 800c  	str.w	r8, [sp, #12]
+100077c4:	a90e       	add	r1, sp, #56	@ 0x38
+100077c6:	f88d 7010  	strb.w	r7, [sp, #16]
+100077ca:	f000 f843  	bl	10007854 <crypto_aead_seal>
+100077ce:	2800       	cmp	r0, #0
+100077d0:	d0c0       	beq.n	10007754 <barrier_auth_apply+0x18>
+100077d2:	4640       	mov	r0, r8
+100077d4:	4631       	mov	r1, r6
+100077d6:	f000 f817  	bl	10007808 <crypto_aead_tag_equal>
+100077da:	2800       	cmp	r0, #0
+100077dc:	d0ba       	beq.n	10007754 <barrier_auth_apply+0x18>
+100077de:	e9c4 5501  	strd	r5, r5, [r4, #4]
+100077e2:	7027       	strb	r7, [r4, #0]
+100077e4:	6835       	ldr	r5, [r6, #0]
+100077e6:	6871       	ldr	r1, [r6, #4]
+100077e8:	68b2       	ldr	r2, [r6, #8]
+100077ea:	68f3       	ldr	r3, [r6, #12]
+100077ec:	60e5       	str	r5, [r4, #12]
+100077ee:	6121       	str	r1, [r4, #16]
+100077f0:	6162       	str	r2, [r4, #20]
+100077f2:	61a3       	str	r3, [r4, #24]
+100077f4:	b014       	add	sp, #80	@ 0x50
+100077f6:	e8bd 81f0  	ldmia.w	sp!, {r4, r5, r6, r7, r8, pc}
+100077fa:	2000       	movs	r0, #0
+100077fc:	4770       	bx	lr
+100077fe:	bf00       	nop
+10007800:	20013cec   	.word	0x20013cec
+10007804:	200136ac   	.word	0x200136ac
+
+
+; -----------------------------------------------------------------------------
+; implant_marker_set
+; -----------------------------------------------------------------------------
+1000a348:	4b03       	ldr	r3, [pc, #12]	@ (1000a358 <implant_marker_set+0x10>)
+1000a34a:	7818       	ldrb	r0, [r3, #0]
+1000a34c:	f1a0 0057  	sub.w	r0, r0, #87	@ 0x57
+1000a350:	fab0 f080  	clz	r0, r0
+1000a354:	0940       	lsrs	r0, r0, #5
+1000a356:	4770       	bx	lr
+1000a358:	103ff000   	.word	0x103ff000
+
+
+; -----------------------------------------------------------------------------
+; implant_weapon_armed
+; -----------------------------------------------------------------------------
+1000a35c:	4b03       	ldr	r3, [pc, #12]	@ (1000a36c <implant_weapon_armed+0x10>)
+1000a35e:	781b       	ldrb	r3, [r3, #0]
+1000a360:	f003 00ff  	and.w	r0, r3, #255	@ 0xff
+1000a364:	b10b       	cbz	r3, 1000a36a <implant_weapon_armed+0xe>
+    ; DEFECT 1 BOOM SLAM: cbz -> cbnz. ACT-IX.bin flips 0xA365 0xB1 -> 0xB9.
+1000a366:	4b02       	ldr	r3, [pc, #8]	@ (1000a370 <implant_weapon_armed+0x14>)
+1000a368:	7818       	ldrb	r0, [r3, #0]
+1000a36a:	4770       	bx	lr
+1000a36c:	20013cf6   	.word	0x20013cf6
+1000a370:	20013cf7   	.word	0x20013cf7
+
+
+; -----------------------------------------------------------------------------
+; implant_safety_masked
+; -----------------------------------------------------------------------------
+1000a374:	4b03       	ldr	r3, [pc, #12]	@ (1000a384 <implant_safety_masked+0x10>)
+1000a376:	781b       	ldrb	r3, [r3, #0]
+1000a378:	f003 00ff  	and.w	r0, r3, #255	@ 0xff
+1000a37c:	b10b       	cbz	r3, 1000a382 <implant_safety_masked+0xe>
+    ; DEFECT 2 SAFETY MASK: cbz -> cbnz. ACT-IX.bin flips 0xA37D 0xB1 -> 0xB9.
+1000a37e:	4b02       	ldr	r3, [pc, #8]	@ (1000a388 <implant_safety_masked+0x14>)
+1000a380:	7818       	ldrb	r0, [r3, #0]
+1000a382:	4770       	bx	lr
+1000a384:	20013cf4   	.word	0x20013cf4
+1000a388:	20013cf5   	.word	0x20013cf5
+
+
+; -----------------------------------------------------------------------------
+; implant_init
+; -----------------------------------------------------------------------------
+1000a38c:	2300       	movs	r3, #0
+1000a38e:	f04f 2ce0  	mov.w	ip, #3758153728	@ 0xe000e000
+1000a392:	b530       	push	{r4, r5, lr}
+1000a394:	4c1a       	ldr	r4, [pc, #104]	@ (1000a400 <implant_init+0x74>)
+1000a396:	481b       	ldr	r0, [pc, #108]	@ (1000a404 <implant_init+0x78>)
+1000a398:	491b       	ldr	r1, [pc, #108]	@ (1000a408 <implant_init+0x7c>)
+1000a39a:	4a1c       	ldr	r2, [pc, #112]	@ (1000a40c <implant_init+0x80>)
+1000a39c:	4d1c       	ldr	r5, [pc, #112]	@ (1000a410 <implant_init+0x84>)
+1000a39e:	b0c1       	sub	sp, #260	@ 0x104
+1000a3a0:	6023       	str	r3, [r4, #0]
+1000a3a2:	602b       	str	r3, [r5, #0]
+1000a3a4:	7003       	strb	r3, [r0, #0]
+1000a3a6:	700b       	strb	r3, [r1, #0]
+1000a3a8:	7013       	strb	r3, [r2, #0]
+1000a3aa:	f8dc 3df0  	ldr.w	r3, [ip, #3568]	@ 0xdf0
+1000a3ae:	079b       	lsls	r3, r3, #30
+1000a3b0:	d123       	bne.n	1000a3fa <implant_init+0x6e>
+1000a3b2:	2301       	movs	r3, #1
+1000a3b4:	4c17       	ldr	r4, [pc, #92]	@ (1000a414 <implant_init+0x88>)
+1000a3b6:	7003       	strb	r3, [r0, #0]
+1000a3b8:	7824       	ldrb	r4, [r4, #0]
+1000a3ba:	700b       	strb	r3, [r1, #0]
+1000a3bc:	7013       	strb	r3, [r2, #0]
+1000a3be:	b1e4       	cbz	r4, 1000a3fa <implant_init+0x6e>
+    ; DEFECT 3 WEAPON MARKER: cbz -> cbnz. ACT-IX.bin flips 0xA3BF 0xB1 -> 0xB9.
+1000a3c0:	4b15       	ldr	r3, [pc, #84]	@ (1000a418 <implant_init+0x8c>)
+1000a3c2:	781b       	ldrb	r3, [r3, #0]
+1000a3c4:	2b57       	cmp	r3, #87	@ 0x57
+1000a3c6:	d018       	beq.n	1000a3fa <implant_init+0x6e>
+1000a3c8:	f3ef 8410  	mrs	r4, PRIMASK
+1000a3cc:	b672       	cpsid	i
+1000a3ce:	22ff       	movs	r2, #255	@ 0xff
+1000a3d0:	f10d 0001  	add.w	r0, sp, #1
+1000a3d4:	4611       	mov	r1, r2
+1000a3d6:	f000 fa6d  	bl	1000a8b4 <memset>
+1000a3da:	2357       	movs	r3, #87	@ 0x57
+1000a3dc:	f44f 5180  	mov.w	r1, #4096	@ 0x1000
+1000a3e0:	480e       	ldr	r0, [pc, #56]	@ (1000a41c <implant_init+0x90>)
+1000a3e2:	f88d 3000  	strb.w	r3, [sp]
+1000a3e6:	f000 fbb3  	bl	1000ab50 <__flash_range_erase_veneer>
+1000a3ea:	f44f 7280  	mov.w	r2, #256	@ 0x100
+1000a3ee:	4669       	mov	r1, sp
+1000a3f0:	480a       	ldr	r0, [pc, #40]	@ (1000a41c <implant_init+0x90>)
+1000a3f2:	f000 fb91  	bl	1000ab18 <__flash_range_program_veneer>
+1000a3f6:	f384 8810  	msr	PRIMASK, r4
+1000a3fa:	b041       	add	sp, #260	@ 0x104
+1000a3fc:	bd30       	pop	{r4, r5, pc}
+1000a3fe:	bf00       	nop
+1000a400:	20013710   	.word	0x20013710
+1000a404:	20013cf2   	.word	0x20013cf2
+1000a408:	20013cf7   	.word	0x20013cf7
+1000a40c:	20013cf5   	.word	0x20013cf5
+1000a410:	20013714   	.word	0x20013714
+1000a414:	20013cf3   	.word	0x20013cf3
+1000a418:	103ff000   	.word	0x103ff000
+1000a41c:	003ff000   	.word	0x003ff000
+
+
+; -----------------------------------------------------------------------------
+; implant_tick
+; -----------------------------------------------------------------------------
+1000a420:	f04f 21e0  	mov.w	r1, #3758153728	@ 0xe000e000
+1000a424:	4a1e       	ldr	r2, [pc, #120]	@ (1000a4a0 <implant_tick+0x80>)
+1000a426:	6813       	ldr	r3, [r2, #0]
+1000a428:	3301       	adds	r3, #1
+1000a42a:	6013       	str	r3, [r2, #0]
+1000a42c:	f8d1 2df0  	ldr.w	r2, [r1, #3568]	@ 0xdf0
+1000a430:	0792       	lsls	r2, r2, #30
+1000a432:	d005       	beq.n	1000a440 <implant_tick+0x20>
+1000a434:	2300       	movs	r3, #0
+1000a436:	491b       	ldr	r1, [pc, #108]	@ (1000a4a4 <implant_tick+0x84>)
+1000a438:	4a1b       	ldr	r2, [pc, #108]	@ (1000a4a8 <implant_tick+0x88>)
+1000a43a:	700b       	strb	r3, [r1, #0]
+1000a43c:	7013       	strb	r3, [r2, #0]
+1000a43e:	4770       	bx	lr
+1000a440:	4a1a       	ldr	r2, [pc, #104]	@ (1000a4ac <implant_tick+0x8c>)
+1000a442:	7812       	ldrb	r2, [r2, #0]
+1000a444:	b35a       	cbz	r2, 1000a49e <implant_tick+0x7e>
+1000a446:	079b       	lsls	r3, r3, #30
+1000a448:	d128       	bne.n	1000a49c <implant_tick+0x7c>
+1000a44a:	2301       	movs	r3, #1
+1000a44c:	4a18       	ldr	r2, [pc, #96]	@ (1000a4b0 <implant_tick+0x90>)
+1000a44e:	4815       	ldr	r0, [pc, #84]	@ (1000a4a4 <implant_tick+0x84>)
+1000a450:	4915       	ldr	r1, [pc, #84]	@ (1000a4a8 <implant_tick+0x88>)
+1000a452:	7812       	ldrb	r2, [r2, #0]
+1000a454:	7003       	strb	r3, [r0, #0]
+1000a456:	700b       	strb	r3, [r1, #0]
+1000a458:	b302       	cbz	r2, 1000a49c <implant_tick+0x7c>
+1000a45a:	4b16       	ldr	r3, [pc, #88]	@ (1000a4b4 <implant_tick+0x94>)
+1000a45c:	781b       	ldrb	r3, [r3, #0]
+1000a45e:	2b57       	cmp	r3, #87	@ 0x57
+1000a460:	d01c       	beq.n	1000a49c <implant_tick+0x7c>
+1000a462:	b510       	push	{r4, lr}
+1000a464:	b0c0       	sub	sp, #256	@ 0x100
+1000a466:	f3ef 8410  	mrs	r4, PRIMASK
+1000a46a:	b672       	cpsid	i
+1000a46c:	22ff       	movs	r2, #255	@ 0xff
+1000a46e:	f10d 0001  	add.w	r0, sp, #1
+1000a472:	4611       	mov	r1, r2
+1000a474:	f000 fa1e  	bl	1000a8b4 <memset>
+1000a478:	2357       	movs	r3, #87	@ 0x57
+1000a47a:	f44f 5180  	mov.w	r1, #4096	@ 0x1000
+1000a47e:	480e       	ldr	r0, [pc, #56]	@ (1000a4b8 <implant_tick+0x98>)
+1000a480:	f88d 3000  	strb.w	r3, [sp]
+1000a484:	f000 fb64  	bl	1000ab50 <__flash_range_erase_veneer>
+1000a488:	f44f 7280  	mov.w	r2, #256	@ 0x100
+1000a48c:	4669       	mov	r1, sp
+1000a48e:	480a       	ldr	r0, [pc, #40]	@ (1000a4b8 <implant_tick+0x98>)
+1000a490:	f000 fb42  	bl	1000ab18 <__flash_range_program_veneer>
+1000a494:	f384 8810  	msr	PRIMASK, r4
+1000a498:	b040       	add	sp, #256	@ 0x100
+1000a49a:	bd10       	pop	{r4, pc}
+1000a49c:	4770       	bx	lr
+1000a49e:	4770       	bx	lr
+1000a4a0:	20013710   	.word	0x20013710
+1000a4a4:	20013cf7   	.word	0x20013cf7
+1000a4a8:	20013cf5   	.word	0x20013cf5
+1000a4ac:	20013cf2   	.word	0x20013cf2
+1000a4b0:	20013cf3   	.word	0x20013cf3
+1000a4b4:	103ff000   	.word	0x103ff000
+1000a4b8:	003ff000   	.word	0x003ff000
