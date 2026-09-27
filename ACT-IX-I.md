@@ -245,7 +245,7 @@ drawn from `ACT-IX-main-disasm.txt`:
 | Implant | `implant_marker_set` | `0x1000A348` |
 | Crypto | `envelope_open_hex` | `0x100079E0` |
 | Radio | `radio_init` | `0x1000A4BC` |
-| Tower light | `status_led_show` | `0x1000A8B4` |
+| Tower light | `status_led_show` | `0x1000A7F4` |
 
 Annotated disassembly for the key functions is provided in
 `ACT-IX-main-disasm.txt`. Use it as a map, then confirm every byte yourself.
@@ -339,8 +339,8 @@ it.
 This is an analysis obstacle, not a graded defect on its own. The implant reads
 CoreDebug `DHCSR` at `0xE000EDF0` and returns early while a probe is attached. In
 `implant_init` the read is the `ldr.w r3, [ip, #3568]` at `0x1000A3AA`, the
-`lsls r3, r3, #30` at `0x1000A38E` keeps `C_HALT` and `C_DEBUGEN`, and the
-`bne.n` at `0x1000A390` suppresses the slam and the marker write. The same register
+`lsls r3, r3, #30` at `0x1000A3AE` keeps `C_HALT` and `C_DEBUGEN`, and the
+`bne.n` at `0x1000A3B0` suppresses the slam and the marker write. The same register
 is read in `implant_tick` at `0x1000A42C`. It is identical in both the compromised
 and corrected images. You must defeat it to observe the weapon marker write before
 you patch the shipped artifact.

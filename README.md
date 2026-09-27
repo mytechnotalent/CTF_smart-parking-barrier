@@ -105,14 +105,14 @@ it away.
 
 | File | Role | SHA-256 |
 | ---- | ---- | ------- |
-| `ACT-IX.bin` | compromised firmware, the target | `e38aed5dfeaeeb09dbfba75d52a0d95f035656acd35c923ee67991830c87fc9e` |
-| `ACT-IX.uf2` | flashable image of the target | `03a1b13a0e3a5102c8b090466b6b2b3acaa54769ea668b0a6d244f67c2b79071` |
-| `ACT-IX_fixed.bin` | corrected firmware, the solution | `c0dc50f73c753dd216010ecfcb147eb7af2ff7c1d49af217f7abd3dea7f75f3e` |
-| `ACT-IX_fixed.uf2` | flashable image of the solution | `4c2a861885073ad4bee7a19d1cf2113ae4858207ccc42ffc071b24a111b2ed39` |
+| `ACT-IX.bin` | compromised firmware, the target | `dbdf7ff59c22dce3f008cbcdccf35eb97b97ff50be65a574befd39f05f0c6a32` |
+| `ACT-IX.uf2` | flashable image of the target | `174a68a7e82af9d7eb5097bfb000743bfc8ac40cc05a91a477f9eb8e22b6d460` |
+| `ACT-IX_fixed.bin` | corrected firmware, the solution | `4b9438fd9157c859508523baec7e18bda3119b7c562d957872470268bf39f0d8` |
+| `ACT-IX_fixed.uf2` | flashable image of the solution | `d70c85965bd9fb13848a3302128b4c8e3a6801ed813786b4831a901039d0832e` |
 
 The two `.bin` files differ in exactly four bytes at offsets
-`0x7529, 0xA295, 0xA2AD, 0xA2EF`, and both are 50,460 bytes. The UF2 images are
-101,888 bytes.
+`0x75F9, 0xA365, 0xA37D, 0xA3BF`, and both are 50,972 bytes. The UF2 images are
+102,912 bytes.
 
 <br>
 

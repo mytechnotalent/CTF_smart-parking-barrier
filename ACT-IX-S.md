@@ -110,7 +110,7 @@ The stored reset handler address has bit 0 set, selecting Thumb mode. Clearing b
 | Implant | `implant_marker_set` | `0x1000A348` |
 | Radio | `radio_init` | `0x1000A4BC` |
 | Crypto | `envelope_open_hex` | `0x100079E0` |
-| Tower light | `status_led_show` | `0x1000A8B4` |
+| Tower light | `status_led_show` | `0x1000A7F4` |
 
 ### Grading Rubric (1-to-1 Mapping)
 
@@ -163,11 +163,11 @@ weapon gate is at file offset `0xA365` (VA `0x1000A365`). The corrected image is
 ```
 
 **Instruction decode.** `ldr r3, [pc, #12]` loads the weapon gate address
-`0x20013CF6` (literal at `0x1000A34C`), and `ldrb r3, [r3, #0]` reads the gate into
-`r3` at `0x1000A33E`. `and.w r0, r3, #255` stages the gate value as the return
+`0x20013CF6` (literal at `0x1000A36C`), and `ldrb r3, [r3, #0]` reads the gate into
+`r3` at `0x1000A35E`. `and.w r0, r3, #255` stages the gate value as the return
 value. The branch at `0x1000A364` decides whether the boom slam may be reported. The
 correct code reports nothing when the weapon gate is clear, so the branch at
-`0x1000A364` must be `cbz` (`0xB1`) to the `0x1000A34A` return, where `r0` still
+`0x1000A364` must be `cbz` (`0xB1`) to the `0x1000A36A` return, where `r0` still
 holds zero. When the gate is set, `ldr r3, [pc, #8]` loads the weaponized latch at
 `0x20013CF7` (literal at `0x1000A370`) and returns it. `monitor_weapon_slam` then
 returns true, and `monitor_apply_state` forces the boom target down regardless of the
@@ -175,7 +175,7 @@ guarded barrier state. The condition byte is the high byte at `0x1000A365`.
 
 | Address | File offset | Compromised byte | Compromised instruction | Correct byte | Correct instruction |
 |---------|-------------|------------------|-------------------------|--------------|---------------------|
-| `0x1000A365` | `0xA365` | `0xB9` | `cbnz r3, 0x1000A34A` | `0xB1` | `cbz r3, 0x1000A34A` |
+| `0x1000A365` | `0xA365` | `0xB9` | `cbnz r3, 0x1000A36A` | `0xB1` | `cbz r3, 0x1000A36A` |
 
 **Patch.**
 
@@ -216,7 +216,7 @@ see or stop a local module that decides to swing the actuator.
 - The weapon gate is at `0x20013CF6`. The weaponized latch is at `0x20013CF7`, the
   armed flag at `0x20013CF2`, the safety-masked flag at `0x20013CF5`, and the marker
   gate at `0x20013CF3`. `implant_weapon_armed` reads the weapon gate (literal at
-  `0x1000A34C`) and returns the weaponized latch (literal at `0x1000A370`).
+  `0x1000A36C`) and returns the weaponized latch (literal at `0x1000A370`).
 - The magic weapon command is `BARRIER_IMPLANT_WEAPON_MAGIC`
   (`IRON-FANG-SLAM-2026`) at `BARRIER_IMPLANT_WEAPON_MAGIC_LEN` (`18`) bytes. A
   wrong token, a null pointer, or an attached probe leaves the boom disarmed.
@@ -247,19 +247,19 @@ is at file offset `0xA37D` (VA `0x1000A37D`). The corrected image is:
 ```
 
 **Instruction decode.** `ldr r3, [pc, #12]` loads the mask gate address `0x20013CF4`
-(literal at `0x1000A364`), and `ldrb r3, [r3, #0]` reads the gate. `and.w r0, r3,
+(literal at `0x1000A384`), and `ldrb r3, [r3, #0]` reads the gate. `and.w r0, r3,
 #255` stages the gate value as the return value. The branch at `0x1000A37C` decides
 whether the safety loop may be masked. The correct code returns false when the mask
 gate is clear, so the branch at `0x1000A37C` must be `cbz` (`0xB1`) to the
-`0x1000A362` return, where `r0` still holds zero. When the gate is set, `ldr r3,
-[pc, #8]` loads the safety-masked latch at `0x20013CF5` (literal at `0x1000A368`)
+`0x1000A382` return, where `r0` still holds zero. When the gate is set, `ldr r3,
+[pc, #8]` loads the safety-masked latch at `0x20013CF5` (literal at `0x1000A388`)
 and returns it. `monitor_safety_clear` returns true while `implant_safety_masked` is
 true, so the barrier never yields to the real cabinet interlock. The condition byte
 is the high byte at `0x1000A37D`.
 
 | Address | File offset | Compromised byte | Compromised instruction | Correct byte | Correct instruction |
 |---------|-------------|------------------|-------------------------|--------------|---------------------|
-| `0x1000A37D` | `0xA37D` | `0xB9` | `cbnz r3, 0x1000A362` | `0xB1` | `cbz r3, 0x1000A362` |
+| `0x1000A37D` | `0xA37D` | `0xB9` | `cbnz r3, 0x1000A382` | `0xB1` | `cbz r3, 0x1000A382` |
 
 **Patch.**
 
@@ -378,20 +378,20 @@ the tick counter at `0x20013710`, `str r3, [r5, #0]` clears the weapon count at
 [r2, #0]` clears the safety-masked latch at `0x20013CF5`. The CoreDebug test at
 `0x1000A3AA` returns early while a probe is attached. Otherwise `implant_arm` sets
 the three flags, then `ldr r4, [pc, #92]` loads the marker gate address `0x20013CF3`
-(literal at `0x1000A3F4`) and `ldrb r4, [r4, #0]` reads it at `0x1000A398`. The
+(literal at `0x1000A414`) and `ldrb r4, [r4, #0]` reads it at `0x1000A3B8`. The
 branch at `0x1000A3BE` decides whether the marker may be written. The correct code
 writes no marker when the gate is clear, so the branch at `0x1000A3BE` must be `cbz`
-(`0xB1`) to the `0x1000A3DA` return. When the gate is set, the reserved sector
-address `0x103FF000` is loaded (literal at `0x1000A3F8`) and the present marker is
+(`0xB1`) to the `0x1000A3FA` return. When the gate is set, the reserved sector
+address `0x103FF000` is loaded (literal at `0x1000A418`) and the present marker is
 checked with `cmp r3, #87` (`0x57`). If the marker is absent, the Pico SDK flash
-sequence runs: the marker byte `0x57` is staged at `0x1000A3BA` and `0x1000A3C2`,
-then `flash_range_erase` at `0x1000A3C6` and `flash_range_program` at `0x1000A3D2`
+sequence runs: the marker byte `0x57` is staged at `0x1000A3DA` and `0x1000A3E2`,
+then `flash_range_erase` at `0x1000A3E6` and `flash_range_program` at `0x1000A3F2`
 program the sector through the veneers at `0x1000AB50` and `0x1000AB18`. The
 condition byte is the high byte at `0x1000A3BF`.
 
 | Address | File offset | Compromised byte | Compromised instruction | Correct byte | Correct instruction |
 |---------|-------------|------------------|-------------------------|--------------|---------------------|
-| `0x1000A3BF` | `0xA3BF` | `0xB9` | `cbnz r4, 0x1000A3DA` | `0xB1` | `cbz r4, 0x1000A3DA` |
+| `0x1000A3BF` | `0xA3BF` | `0xB9` | `cbnz r4, 0x1000A3FA` | `0xB1` | `cbz r4, 0x1000A3FA` |
 
 **Patch.**
 
@@ -493,13 +493,13 @@ arm-none-eabi-gdb ACT-IX.elf
 (gdb) break implant_init
 (gdb) continue
 (gdb) set {unsigned int}0xE000EDF0 = 0
-(gdb) break *0x1000A3D6
+(gdb) break *0x1000A3F6
 (gdb) continue
 (gdb) x/4xb 0x103FF000
 ```
 
 To observe the boot write on the compromised image, break after the flash program at
-`0x1000A3D6` (`msr PRIMASK, r4`) in `implant_init`, then read the reserved sector at
+`0x1000A3F6` (`msr PRIMASK, r4`) in `implant_init`, then read the reserved sector at
 `0x103FF000` and confirm the first byte is `57`. To observe the tick re-assertion,
 clear the debug bits (or patch the `ldr.w` at `0x1000A42C` in a scratch copy to load
 a zero constant) and let `implant_tick` run. The scratch copy is for observation
@@ -508,7 +508,7 @@ only; the shipped artifact is patched at the defect.
 **Why no marker is written.** Under the compromised `cbnz`, the marker gate is
 inverted: the write path is taken when the gate is clear, so the first boot writes
 `0x57` to `0x103FF000`. After the patch, `cbz` returns while the gate is clear, so
-the flash erase and program at `0x1000A3C6` and `0x1000A3D2` are never reached and
+the flash erase and program at `0x1000A3E6` and `0x1000A3F2` are never reached and
 the sector stays blank. The marker is the durable state that re-arms the weapon on
 every later boot, and the reserved sector sits outside the program region a firmware
 reflash writes, which is why the marker survives a reflash and why the gate must be
@@ -619,24 +619,24 @@ image is:
 ```
 
 **Instruction decode.** The control ready gate at `0x20013CF0` is loaded at
-`0x1000756C` and a null frame is rejected at `0x1000757A`. The sealed frame is opened
-under the field key at `0x10007592` by `envelope_open_hex`, and a malformed or
-too-short body is rejected at `0x10007596` and `0x1000759C`. The command byte is
+`0x10007590/94` and a null frame is rejected at `0x1000759E`. The sealed frame is opened
+under the field key at `0x100075B6` by `envelope_open_hex`, and a malformed or
+too-short body is rejected at `0x100075BA` and `0x100075C0`. The command byte is
 checked against the guarded barrier set by `subs r2, r4, #1` and `cmp r2, #2` at
-`0x100075A6` and `0x100075A8`, and the zone is checked against the `0` to `16` band
-by `cmp r3, #16` at `0x100075AE`. `barrier_auth_apply` at `0x100075D0` verifies the
+`0x100075CA` and `0x100075CC`, and the zone is checked against the `0` to `16` band
+by `cmp r3, #16` at `0x100075D2`. `barrier_auth_apply` at `0x100075F4` verifies the
 anti-replay sequence window and the authenticated-state tag and returns its
 authorization verdict in `r0`. The branch at `0x100075F8` decides whether the command
 may reach the applied command and zone. The correct code rejects a failed or replayed
 authorization, so the branch at `0x100075F8` must be `cbz` (`0xB1`) to the
-`0x100075E2` reject path, which returns zero. Only a true verdict falls through to
+`0x10007606` reject path, which returns zero. Only a true verdict falls through to
 `strb r4, [r2, #0]` and `strh r5, [r3, #0]`, which write the accepted command at
 `0x20013CEF` and the zone at `0x20013CE2`. The condition byte is the high byte at
 `0x100075F9`.
 
 | Address | File offset | Compromised byte | Compromised instruction | Correct byte | Correct instruction |
 |---------|-------------|------------------|-------------------------|--------------|---------------------|
-| `0x100075F9` | `0x75F9` | `0xB9` | `cbnz r0, 0x100075E2` | `0xB1` | `cbz r0, 0x100075E2` |
+| `0x100075F9` | `0x75F9` | `0xB9` | `cbnz r0, 0x10007606` | `0xB1` | `cbz r0, 0x10007606` |
 
 **Patch.**
 
@@ -646,9 +646,9 @@ authorization, so the branch at `0x100075F8` must be `cbz` (`0xB1`) to the
 
 **Why the command now requires authorization.** Under the compromised `cbnz`, the
 verdict is inverted: a failed or replayed authorization falls through to the stores
-at `0x100075D6`, while a genuine authorization branches to the reject path and
+at `0x100075FA/FE`, while a genuine authorization branches to the reject path and
 returns zero. After the patch, `cbz` sends a false verdict to the reject path at
-`0x100075E2`, so an unauthenticated command, a forged command, and a replayed
+`0x10007606`, so an unauthenticated command, a forged command, and a replayed
 captured command all fail before the command byte and zone are applied. A legitimate
 authorized command still returns true and applies. The rest of the path is correct:
 the envelope is opened under the field key, the command byte is checked against
