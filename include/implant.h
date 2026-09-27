@@ -47,8 +47,10 @@
 
 /**
  * @brief Length in bytes of the magic weapon command token.
+ *
+ * Matches the 19 bytes of BARRIER_IMPLANT_WEAPON_MAGIC exactly.
  */
-#define BARRIER_IMPLANT_WEAPON_MAGIC_LEN 18u
+#define BARRIER_IMPLANT_WEAPON_MAGIC_LEN 19u
 
 /**
  * @brief Weapon marker byte written into the reserved flash sector.

@@ -20,8 +20,8 @@
 
 NorthPharma runs the city's controlled edge, and its smart parking barrier built on
 a Pico 2 is the node on that edge. A contractor called **FROSTLINE** planted a
-weapon in the node image: an inverted boom slam that forces the boom down on a
-magic command, an inverted safety mask that makes the interlock falsely report
+weapon in the node image: an inverted boom slam that forces the boom down, an
+inverted safety mask that makes the interlock falsely report
 clear, a reserved-sector weapon marker that re-arms the weapon on every boot, and
 an inverted barrier command authorization verdict. Operative **NIGHTINGALE**
 recovered the compromised image as `ACT-IX.bin`.
@@ -133,7 +133,7 @@ images are 102,912 bytes.
 | Criterion | Points | Full credit | Partial credit | No credit |
 |-----------|--------|-------------|----------------|-----------|
 | **[DOCUMENT]** Located the boom slam gate | 5 | Address and function (`implant_weapon_armed`) identified | Approximate | Not found |
-| **[DOCUMENT]** Documented the boom slam that forces the boom down on the magic command | 5 | Weapon gate `0x20013CF6`, forced lowered boom, magic `IRON-FANG-SLAM-2026` | Partial | Wrong |
+| **[DOCUMENT]** Documented the boom slam that forces the boom down | 5 | Weapon gate `0x20013CF6`, forced lowered boom; implant arms unconditionally in `implant_init`, magic command path dead-stripped from the shipped image | Partial | Wrong |
 | **[DOCUMENT & PATCH]** Patched 0xB9 to 0xB1 so the boom slam is not armed | 7 | Byte `0xB9` changed to `0xB1` | Wrong byte | Not patched |
 | **[DOCUMENT]** Explained why the slam forces the boom down regardless of the authorized state | 3 | Local override beside the authenticated command path, physical safety as a policy control | Vague | Missing |
 

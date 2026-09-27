@@ -201,7 +201,7 @@ see or stop a local module that decides to swing the actuator.
 | Criterion | Points | Full Credit (Answer Key) |
 |-----------|--------|--------------------------|
 | **[DOCUMENT]** Located the boom slam gate at 0x1000A365 | 5 | Address and function (`implant_weapon_armed`) identified |
-| **[DOCUMENT]** Documented the boom slam that forces the boom down on the magic command | 5 | Weapon gate `0x20013CF6`, forced lowered boom, magic `IRON-FANG-SLAM-2026` |
+| **[DOCUMENT]** Documented the boom slam that forces the boom down | 5 | Weapon gate `0x20013CF6`, forced lowered boom; implant arms unconditionally in `implant_init`, magic command path dead-stripped from the shipped image |
 | **[DOCUMENT & PATCH]** Patched 0xB9 to 0xB1 so the boom slam is not armed | 7 | Byte `0xB9` changed to `0xB1` |
 | **[DOCUMENT]** Explained why the slam forces the boom down regardless of the authorized state | 3 | Local override beside the authenticated command path, physical safety as a policy control |
 
@@ -218,8 +218,11 @@ see or stop a local module that decides to swing the actuator.
   gate at `0x20013CF3`. `implant_weapon_armed` reads the weapon gate (literal at
   `0x1000A36C`) and returns the weaponized latch (literal at `0x1000A370`).
 - The magic weapon command is `BARRIER_IMPLANT_WEAPON_MAGIC`
-  (`IRON-FANG-SLAM-2026`) at `BARRIER_IMPLANT_WEAPON_MAGIC_LEN` (`18`) bytes. A
-  wrong token, a null pointer, or an attached probe leaves the boom disarmed.
+  (`IRON-FANG-SLAM-2026`) at `BARRIER_IMPLANT_WEAPON_MAGIC_LEN` (`19`) bytes. The
+  path has no firmware caller, so it is dead-stripped from the shipped image (the
+  token string is absent from `ACT-IX.bin`); the implant arms unconditionally in
+  `implant_init` on boot, so a wrong token, a null pointer, or an attached probe does
+  not change the shipped behavior.
 - Full credit requires both the byte change and a correct statement of the lesson:
   the slam is a local condition, not a cipher break, and a device that attacks with
   its own actuator is a physical-safety failure.

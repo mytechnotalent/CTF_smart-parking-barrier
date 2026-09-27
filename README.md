@@ -52,7 +52,7 @@ By using this repository and course, you acknowledge and agree that:
 >
 > FROSTLINE's implant in this one does not spread, does not steal, and does not take
 > orders. It weaponizes the actuator. It ignores the safety loop and slams the boom
-> down on a magic command, turning a gate into a physical hazard, and it writes a
+> down, turning a gate into a physical hazard, and it writes a
 > weapon marker into the reserved sector with the real flash API so the weapon
 > re-arms after a reflash. This is physical weaponization wrapped in control logic:
 > the device withholds safety from the machine it exists to move.
@@ -85,15 +85,17 @@ Probe.
 
 | # | Name | What FROSTLINE did |
 | - | ---- | ------------------ |
-| 1 | The Boom Slam | inverted the weapon gate so the implant reports the boom armed, forces the boom down, and slams the boom on the magic command `IRON-FANG-SLAM-2026` |
+| 1 | The Boom Slam | inverted the weapon gate so the implant reports the boom armed and forces the boom down; the implant arms unconditionally in `implant_init`, since the magic command path is dead-stripped from the shipped image |
 | 2 | The Safety Mask | inverted the mask gate so the safety loop falsely reports clear while the weapon holds the barrier |
 | 3 | The Weapon Marker | inverted the marker gate so the first boot programs weapon marker `0x57` into reserved sector `0x103FF000` with the real flash API |
 | 4 | The Barrier Command Authorization | inverted the authorization verdict so an unauthenticated or replayed barrier command is accepted |
 
-The wire is sealed with XChaCha20-Poly1305, keyed through Argon2id. The cryptography
-is correct. Three of the four defects are not in the cipher at all: they are a
-weapon that slams the boom down, masks its own safety interlock, and writes a
-durable weapon marker to the reserved sector. The fourth is a policy seam in the
+The wire is sealed with XChaCha20-Poly1305, keyed through Argon2id. The
+primitives are standard and correctly implemented, but the field passphrase and
+salt are compiled into the image in cleartext, so this is a lab-only key and not
+a secrecy guarantee. Three of the four defects are not in the cipher at all: they
+are a weapon that slams the boom down, masks its own safety interlock, and writes
+a durable weapon marker to the reserved sector. The fourth is a policy seam in the
 barrier command path. The weapon never needs the cipher. It sits beside the
 authenticated link and overrides the output, so a perfectly valid raise command can
 arrive and the boom will still slam down. Read the dead, find the weapon, and take

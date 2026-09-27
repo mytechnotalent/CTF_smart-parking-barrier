@@ -29,14 +29,17 @@ and verifies sealed pass, raise, and lower commands from a parking control gatew
 over an RYLR998 LoRa link.
 
 A contractor called **FROSTLINE** did not break into this node. It built a weapon
-into the compiled firmware and signed the image. The cryptography is perfect: every
-barrier command is sealed with XChaCha20-Poly1305 under an Argon2id field key, the
-anti-replay sequence window is stateful, and the authenticated state tag is real.
-The weapon does not break the cipher and never touches it. It ignores the safety
-loop and slams the boom down on a magic command, turning a gate into a physical
-hazard, and it programs a weapon marker into a reserved flash sector so the weapon
-comes back after a reflash. Operative **NIGHTINGALE** pulled the compromised image
-off the node and then went quiet.
+into the compiled firmware and signed the image. The primitives are standard and
+correctly implemented: every barrier command is sealed with XChaCha20-Poly1305
+under an Argon2id field key, the anti-replay sequence window is stateful, and the
+authenticated state tag is real. The boundary is the key material: the field
+passphrase and salt are compiled into the image in cleartext, so anyone holding
+the `.bin` can re-derive the field key, and the crypto is lab-only, not a secrecy
+guarantee. The weapon does not break the cipher and never touches it. It ignores
+the safety loop and slams the boom down, turning a gate into a physical hazard,
+and it programs a weapon marker into a reserved flash sector so the weapon comes
+back after a reflash. Operative **NIGHTINGALE** pulled the compromised image off
+the node and then went quiet.
 
 You are the reverse-engineering reserve. You get `ACT-IX.bin`, a breadboard, and a
 debug probe. There is no source. Find all four defects, patch the image, walk a
@@ -68,8 +71,10 @@ target. Four seams betray it:
 
 1. **The Boom Slam.** The inlined weapon gate in `implant_weapon_armed` is inverted,
    so the implant reports the boom armed and `monitor_apply_state` forces the boom
-   down on the magic command `IRON-FANG-SLAM-2026`, regardless of the guarded
-   barrier state.
+   down regardless of the guarded barrier state. The implant arms unconditionally in
+   `implant_init` on every boot; the magic command path (`implant_weaponize`) is
+   compiled out of the shipped image (no firmware caller, and the token string is
+   absent from `ACT-IX.bin`), so the graded defect is the inverted gate itself.
 2. **The Safety Mask.** The inlined `implant_safety_masked` gate is inverted, so the
    safety loop falsely reports clear and the barrier never yields to the real
    cabinet interlock.
@@ -293,7 +298,7 @@ that holds nothing else.
 | -------- | ------ |
 | Boom slam | the inlined weapon gate in `implant_weapon_armed` reports the boom armed; `monitor_apply_state` forces the boom target down regardless of the guarded barrier state |
 | Safety mask | `implant_safety_masked` returns true while the gate is set, and `monitor_safety_clear` returns true while masked, so the barrier never yields to the real interlock |
-| Magic weapon command | `IRON-FANG-SLAM-2026`, exactly `18` bytes; anything else, a null pointer, or an attached probe leaves the weapon disarmed |
+| Magic weapon command | `IRON-FANG-SLAM-2026`, exactly `19` bytes; the path has no firmware caller, so it is dead-stripped from the shipped image (the token string is absent from `ACT-IX.bin`) and the token cannot arm the weapon; the implant arms unconditionally in `implant_init` on boot |
 | Re-assert interval | every `BARRIER_IMPLANT_TICK_INTERVAL` (`4`) ticks while resident and unprobed |
 | Weapon marker | `implant_init` reads marker `0x57` from `0x103FF000`; a present marker re-arms the weapon on every boot |
 | Reserved-sector write | on the first run the inlined `implant_infect` erases the sector and programs `0x57` through `flash_range_erase` and `flash_range_program` |
@@ -317,7 +322,7 @@ Read the actual names in `include/implant.h`, `include/ir_remote.h`, and
 
 | Bug # | Name | Severity | Description | Hint |
 |-------|------|----------|-------------|------|
-| **Bug #1** | The Boom Slam | **CRITICAL** | The weapon gate is inverted, so the implant reports the boom armed and forces the boom down on the magic command. | Find the `cbz` gate in `implant_weapon_armed`. |
+| **Bug #1** | The Boom Slam | **CRITICAL** | The weapon gate is inverted, so the implant reports the boom armed and forces the boom down on boot. | Find the `cbz` gate in `implant_weapon_armed`. |
 | **Bug #2** | The Safety Mask | **HIGH** | The mask gate is inverted, so the safety loop falsely reports clear and the barrier never yields. | Find the `cbz` gate in `implant_safety_masked`. |
 | **Bug #3** | The Weapon Marker | **HIGH** | The marker gate is inverted, so the first boot programs weapon marker `0x57` into reserved sector `0x103FF000` with the real flash API. | Find the `cbz` gate in `implant_init`. |
 | **Bug #4** | The Barrier Command Authorization | **CRITICAL** | The authorization verdict is inverted, so a failed or replayed barrier command is accepted. | The correct branch rejects when authorization fails. |
@@ -330,9 +335,12 @@ The crypto core is a correct reference construction, reused from the earlier act
 Argon2id (`t=3`, `p=1`, `m=64`) derives the field key, XChaCha20-Poly1305 seals
 every frame, the monotonic sequence window rejects a replay, and the
 authenticated-state tag detects a tampered verdict. Only the four seams were
-broken. Once those bytes are restored, the sealed envelope is trustworthy. Describe
-the construction honestly in your report, and explain why the weapon never needed
-it.
+broken. Once those bytes are restored, the sealed envelope verifies as intended
+against anyone who sees only the wire. That is not a secrecy guarantee: the field
+passphrase and salt are embedded in the image, the field key is recoverable by
+anyone holding the `.bin`, and Argon2id at `m=64` KiB is below current
+memory-hardness guidance. Describe the construction honestly in your report, and
+explain why the weapon never needed it.
 
 ### The Anti-Debug Trap
 
@@ -380,8 +388,9 @@ Always call the stored entry the **reset handler**, never the reset pointer.
    is inlined. Locate the gate.
 2. Document the boom slam: the weapon gate at `0x20013CF6`, the corrected `cbz` that
    leaves the boom alone when the gate is clear, and the compromised `cbnz` that
-   reports the boom armed, forces `monitor_apply_state` to drive the boom down, and
-   slams the boom on the magic command `IRON-FANG-SLAM-2026`.
+   reports the boom armed and forces `monitor_apply_state` to drive the boom down.
+   The implant arms unconditionally in `implant_init`; the magic command path is
+   dead-stripped from the shipped image.
 3. Patch the byte so the boom slam is never armed.
 4. Confirm that the corrected node leaves the boom under authorized control and does
    not slam the boom, and explain why a valid authenticated raise command can still
