@@ -317,9 +317,9 @@ Read the actual names in `include/implant.h`, `include/ir_remote.h`, and
 
 | Bug # | Name | Severity | Description | Hint |
 |-------|------|----------|-------------|------|
-| **Bug #1** | The Boom Slam | **CRITICAL** | The weapon gate is inverted, so the implant reports the boom armed and forces the boom down on the magic command. | Find the `cbz` gate in `implant_weapon_armed` at `0xA365`. |
-| **Bug #2** | The Safety Mask | **HIGH** | The mask gate is inverted, so the safety loop falsely reports clear and the barrier never yields. | Find the `cbz` gate in `implant_safety_masked` at `0xA37D`. |
-| **Bug #3** | The Weapon Marker | **HIGH** | The marker gate is inverted, so the first boot programs weapon marker `0x57` into reserved sector `0x103FF000` with the real flash API. | Find the `cbz` gate in `implant_init` at `0xA3BF`. |
+| **Bug #1** | The Boom Slam | **CRITICAL** | The weapon gate is inverted, so the implant reports the boom armed and forces the boom down on the magic command. | Find the `cbz` gate in `implant_weapon_armed`. |
+| **Bug #2** | The Safety Mask | **HIGH** | The mask gate is inverted, so the safety loop falsely reports clear and the barrier never yields. | Find the `cbz` gate in `implant_safety_masked`. |
+| **Bug #3** | The Weapon Marker | **HIGH** | The marker gate is inverted, so the first boot programs weapon marker `0x57` into reserved sector `0x103FF000` with the real flash API. | Find the `cbz` gate in `implant_init`. |
 | **Bug #4** | The Barrier Command Authorization | **CRITICAL** | The authorization verdict is inverted, so a failed or replayed barrier command is accepted. | The correct branch rejects when authorization fails. |
 
 All four defects are same-size in-place byte patches, so no address moves.
@@ -377,7 +377,7 @@ Always call the stored entry the **reset handler**, never the reset pointer.
 ### Task 2: Bug #1 The Boom Slam (20 points)
 
 1. In Ghidra, find `implant_weapon_armed` (starts at `0x1000A35C`); the weapon gate
-   is inlined. Locate the gate at file offset `0xA365` (VA `0x1000A365`).
+   is inlined. Locate the gate.
 2. Document the boom slam: the weapon gate at `0x20013CF6`, the corrected `cbz` that
    leaves the boom alone when the gate is clear, and the compromised `cbnz` that
    reports the boom armed, forces `monitor_apply_state` to drive the boom down, and
@@ -396,7 +396,7 @@ Always call the stored entry the **reset handler**, never the reset pointer.
 ### Task 3: Bug #2 The Safety Mask (20 points)
 
 1. In Ghidra, find `implant_safety_masked` (starts at `0x1000A374`). Locate the mask
-   gate at file offset `0xA37D` (VA `0x1000A37D`).
+   gate.
 2. Document the mask: the mask gate at `0x20013CF4`, the corrected `cbz` that
    returns false when the gate is clear, and the compromised `cbnz` that returns the
    safety-masked latch, so `monitor_safety_clear` returns true and the barrier never
@@ -415,7 +415,7 @@ Always call the stored entry the **reset handler**, never the reset pointer.
 ### Task 4: Bug #3 The Weapon Marker (20 points)
 
 1. The `implant_infect` path is inlined into `implant_init` (starts at `0x1000A38C`).
-   Locate the marker gate at file offset `0xA3BF` (VA `0x1000A3BF`).
+   Locate the marker gate.
 2. Document the CoreDebug `DHCSR` anti-debug and how you defeat it to observe the
    marker. Clear the debug bits with GDB (for example with
    `set {unsigned int}0xE000EDF0 = 0`) or patch the `DHCSR` read in a scratch copy,
@@ -435,9 +435,7 @@ Always call the stored entry the **reset handler**, never the reset pointer.
 ### Task 5: Bug #4 The Barrier Command Authorization (20 points)
 
 1. In Ghidra, find `control_handle_frame` (starts at `0x1000758C`) and locate the
-   authorization branch at file offset `0x75F9` (VA `0x100075F9`). The branch
-   halfword begins at `0x100075F8`; the condition byte is the high byte at
-   `0x100075F9`.
+   authorization branch. The condition byte is the high byte of the branch halfword.
 2. Document the authorization verdict and the exact branch condition that is supposed
    to reject a failed or replayed authorization.
 3. Patch the byte so an unauthenticated or replayed barrier command is rejected

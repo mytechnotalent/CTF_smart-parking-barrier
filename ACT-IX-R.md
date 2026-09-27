@@ -132,7 +132,7 @@ images are 102,912 bytes.
 
 | Criterion | Points | Full credit | Partial credit | No credit |
 |-----------|--------|-------------|----------------|-----------|
-| **[DOCUMENT]** Located the boom slam gate at 0x1000A365 | 5 | Address and function (`implant_weapon_armed`) identified | Approximate | Not found |
+| **[DOCUMENT]** Located the boom slam gate | 5 | Address and function (`implant_weapon_armed`) identified | Approximate | Not found |
 | **[DOCUMENT]** Documented the boom slam that forces the boom down on the magic command | 5 | Weapon gate `0x20013CF6`, forced lowered boom, magic `IRON-FANG-SLAM-2026` | Partial | Wrong |
 | **[DOCUMENT & PATCH]** Patched 0xB9 to 0xB1 so the boom slam is not armed | 7 | Byte `0xB9` changed to `0xB1` | Wrong byte | Not patched |
 | **[DOCUMENT]** Explained why the slam forces the boom down regardless of the authorized state | 3 | Local override beside the authenticated command path, physical safety as a policy control | Vague | Missing |
@@ -141,7 +141,7 @@ images are 102,912 bytes.
 
 | Criterion | Points | Full credit | Partial credit | No credit |
 |-----------|--------|-------------|----------------|-----------|
-| **[DOCUMENT]** Located the safety mask gate at 0x1000A37D | 5 | Address and function (`implant_safety_masked`) identified | Approximate | Not found |
+| **[DOCUMENT]** Located the safety mask gate | 5 | Address and function (`implant_safety_masked`) identified | Approximate | Not found |
 | **[DOCUMENT]** Documented the masked safety loop that falsely reports clear | 5 | Mask gate `0x20013CF4`, `monitor_safety_clear` returns true while masked | Partial | Wrong |
 | **[DOCUMENT & PATCH]** Patched 0xB9 to 0xB1 so the safety loop is never masked | 7 | Byte `0xB9` changed to `0xB1` | Wrong byte | Not patched |
 | **[DOCUMENT]** Explained why a masked safety loop is a physical-safety failure | 3 | The interlock is part of the attack surface and the truth is a control | Vague | Missing |
@@ -150,7 +150,7 @@ images are 102,912 bytes.
 
 | Criterion | Points | Full credit | Partial credit | No credit |
 |-----------|--------|-------------|----------------|-----------|
-| **[DOCUMENT]** Located the weapon marker gate at 0x1000A3BF | 5 | Address and inlined `implant_init` path identified | Approximate | Not found |
+| **[DOCUMENT]** Located the weapon marker gate | 5 | Address and inlined `implant_init` path identified | Approximate | Not found |
 | **[DOCUMENT]** Documented the CoreDebug DHCSR anti-debug and how it is defeated under GDB | 5 | `0xE000EDF0`, `C_DEBUGEN` and `C_HALT`, and a real defeat method | Partial | Wrong |
 | **[DOCUMENT & PATCH]** Patched 0xB9 to 0xB1 so no weapon marker is programmed to 0x103FF000 | 7 | Byte `0xB9` changed to `0xB1` | Wrong byte | Not patched |
 | **[DOCUMENT]** Explained the reserved sector 0x103FF000 and the weapon marker byte 0x57 | 3 | Marker, reserved sector, write-once first run | Vague | Missing |
@@ -159,7 +159,7 @@ images are 102,912 bytes.
 
 | Criterion | Points | Full credit | Partial credit | No credit |
 |-----------|--------|-------------|----------------|-----------|
-| **[DOCUMENT]** Located the barrier command authorization branch at 0x100075F9 | 5 | Address and function (`control_handle_frame`) identified | Approximate | Not found |
+| **[DOCUMENT]** Located the barrier command authorization branch | 5 | Address and function (`control_handle_frame`) identified | Approximate | Not found |
 | **[DOCUMENT]** Documented the authorization verdict inversion and the branch condition | 5 | Reject when the verdict is false | Partial | Wrong |
 | **[DOCUMENT & PATCH]** Patched 0xB9 to 0xB1 so failed and replayed authorizations are rejected | 7 | Byte `0xB9` changed to `0xB1` | Wrong byte | Not patched |
 | **[DOCUMENT]** Explained why an unauthenticated or replayed barrier command must be rejected | 3 | The applied command must see only an authorized verdict | Vague | Missing |
@@ -181,9 +181,9 @@ images are 102,912 bytes.
 |---------|-------------|-----------|
 | Reading the boom slam gate backwards | The boom is still slammed and the boom is forced down | Neutralize only on the clear-gate branch (`cbz`, `0xB1`) |
 | Reading the safety mask gate backwards | The interlock is still masked | Neutralize only when the gate is clear (`cbz`, `0xB1`) |
-| Confusing `cbz` and `cbnz` at `0xA365`, `0xA37D`, or `0xA3BF` | The boom still slams, the loop still lies, or the marker is still written | Neutralize only when the gate is clear (`cbz`, `0xB1`) |
-| Patching the low byte at `0xA364`, `0xA37C`, `0xA3BE`, or `0x75F8` | The condition code never changes | Patch the high byte at `0xA365`, `0xA37D`, `0xA3BF`, `0x75F9` |
-| Searching for a standalone `implant_infect` symbol | Cannot find the inlined gate | Look inside `implant_init` at `0xA3BF` |
+| Confusing `cbz` and `cbnz` | The boom still slams, the loop still lies, or the marker is still written | Neutralize only when the gate is clear (`cbz`, `0xB1`) |
+| Patching the low byte of a gate | The condition code never changes | Patch the high byte of the branch |
+| Searching for a standalone `implant_infect` symbol | Cannot find the inlined gate | Look inside `implant_init` |
 | Confusing the weapon gate with the marker gate | Both sit in the implant functions at different addresses | Patch the weapon gate first, then the marker gate |
 | Patching the shipped image before observing the write | You never prove the weapon marker write | Defeat `DHCSR` under GDB first, then patch the artifact |
 | Fabricating the GDB session | Verification fails | Show the command sequence and the real observed code path |
